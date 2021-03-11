@@ -1,6 +1,19 @@
 const express = require('express');
-const bcrypt = require('bcrypt-nodejs')
-const cors = require('cors') //to avoid Access-control-Allow-Origin
+const bcrypt = require('bcrypt-nodejs'); //https://www.npmjs.com/package/bcrypt
+const cors = require('cors'); //to avoid Access-control-Allow-Origin
+const knex = require('knex'); //http://knexjs.org/
+const { json } = require('express');
+
+const db = knex({
+    client: 'pg',
+    version: '7.2',
+    connection: {
+      host : '127.0.0.1',
+      user : 'jeankai',
+      password : '9728',
+      database : 'smart-brain'
+    }
+  });
 
 const app = express();
 
@@ -47,60 +60,49 @@ app.post('/register', (req,res) =>{
     //using destructoring with the json from the front-end
     const {email, name, password} = req.body;
 
-    bcrypt.hash(password, null, null, function(err, hash) {
-        console.log(hash);
-    });
-
-database.users.push({
-        id: '125',
-        name,
+    return db('users')
+    .returning('*') //just saying that we'll return all 
+    .insert({
         email,
-        password,
-        entries: 0,
+        name,
         joined: new Date()
-});
+    })
+    .then(user =>{
+        res.json(user[0]) //user[0] to ensure is not an array
+    })
+    .catch(err => res.status(400).json('Unable to register')) 
+    //if we keep json(err) we'll be sending information about our system to the users and we don't wanna it. 
 
-res.json(database.users[database.users.length-1])
+
 })
 
 //getting the profile of our user
 app.get('/profile/:id', (req,res) =>{
     const {id} = req.params;
-    let userFound = false;
 
-    database.users.forEach(user =>{
-        if(user.id === id ){
-            //if the id of the params maches with the id of our database, respond with that user
-            // a return to stop it from looping 
-            userFound = true;
-           return  res.json(user)
+    db.select('*').from('users').where({id})
+    .then(user => {
+        if(user.length){
+            res.json(user[0])
+        } else{
+            res.status(400).json('User not found')
         }
+        
     })
-    if(!userFound){
-        return res.status(400).json('not found')
-    }
+    .catch(err => res.status(400).json('Error getting user'))
 })
 
 //update the entries
 app.put('/image',(req,res) =>{
-
     const {id} = req.body;
-    let userFound = false;
 
-    database.users.forEach(user =>{
-        if(user.id == id ){
-            //if the id of the params maches with the id of our database, respond with that user
-            // a return to stop it from looping 
-            userFound = true;
-            user.entries++
-           return  res.json(user.entries)
-        }
+    db('users').where('id', '=', id)
+    .increment('entries',1)
+    .returning('entries')
+    .then(entries => {
+        res.json(entries[0]);
     })
-    if(!userFound){
-        return res.status(400).json('not found')
-    }
-    
-    
+    .catch(err => res.status(400).json('Error updating user entries'))
 })
 
 
@@ -115,7 +117,7 @@ app.put('/image',(req,res) =>{
 // });
 
 app.listen(3001, ()=>{
-    console.log('app is working');
+    console.log('server is working');
 })
 
 
