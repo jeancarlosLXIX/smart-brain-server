@@ -1,0 +1,1 @@
+Here I'll have a better control of my endpoints and my code in the server.js file will be cleaner
