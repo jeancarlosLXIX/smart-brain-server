@@ -20,39 +20,25 @@ const app = express();
 app.use(express.json())
 app.use(cors())
 
-const database = {
-
-   users:[ 
-       {
-        id: '123',
-        name: 'Jean',
-        email: 's@gmail.com',
-        password: 'z',
-        entries: 0,
-        joined: new Date()
-    },
-    {
-        id: '124',
-        name: 'Sasha',
-        email: 'grey@gmail.com',
-        password: '696969',
-        entries: 0,
-        joined: new Date()
-    }
-]
-}
-app.get('/', (req,res)=>{
-    res.json(database.users)
-})
-
 //make sure it's a post because we will request (req) data
 app.post('/signin', (req, res) =>{
-    if(req.body.email === database.users[0].email && req.body.password === database.users[0].password){
-        res.json(database.users[0]);
-    } else {
-        res.status(400).json('user or password wrong')
-    }
-    res.json('signin working')
+    db.select('email', 'hash').from('login')
+    .where('email', '=', req.body.email)
+        .then(data =>{
+           const isValid = bcrypt.compareSync(req.body.password, data[0].hash);
+           
+           if(isValid){
+               return db.select('*').from('users')
+               .where('email', '=', req.body.email)
+               .then(user =>{
+                   res.json(user[0])
+               })
+               .catch(err => res.status(400).json('Unable to get user'));
+           } else{
+               res.status(400).json("Wrong credentials")
+           }
+        })
+        .catch(err => res.status(400).json('Wrong credentials'));
 });
 
  //adding new user to our database
@@ -60,16 +46,31 @@ app.post('/register', (req,res) =>{
     //using destructoring with the json from the front-end
     const {email, name, password} = req.body;
 
-    return db('users')
-    .returning('*') //just saying that we'll return all 
-    .insert({
-        email,
-        name,
-        joined: new Date()
-    })
-    .then(user =>{
-        res.json(user[0]) //user[0] to ensure is not an array
-    })
+    const hash = bcrypt.hashSync(password);
+
+    db.transaction(trx =>{ //create a transsaction when we has to do more than one thing at once
+        //use trx instead of db
+        trx.insert({
+            hash,
+            email
+        })
+        .into('login') //here we take the hash and email to our login table an then go to the 
+        .returning('email')
+        .then(loginEmail => {
+            return trx('users')
+            .returning('*') //just saying that we'll return all 
+            .insert({
+                email: loginEmail[0], //because we are returning an array so we want the first element en avoid {"kai@gmail.com"} in the db
+                name,
+                joined: new Date()
+            })
+            .then(user =>{
+                res.json(user[0]) //user[0] to ensure is not an array
+            })
+        })
+        .then(trx.commit) //to send the  "commit" to our database and see the changes
+        .catch(trx.rollback)
+    })    
     .catch(err => res.status(400).json('Unable to register')) 
     //if we keep json(err) we'll be sending information about our system to the users and we don't wanna it. 
 
