@@ -28,6 +28,7 @@ app.use(cors())
 instead of having (req,res) => {signin.handleSignin(req, res, db, bcrypt)}
 we could have just signin.handleSignin(db, bcrypt) because the request and response come automatically
 */
+app.get('/', (req, res)=> { res.send(db.users) });
 //make sure it's a post because we will request (req) data
 app.post('/signin',signin.handleSignin(db, bcrypt));
 
