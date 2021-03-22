@@ -2,16 +2,13 @@
   "name": "api-face-recognition",
   "version": "1.0.0",
   "description": "Project from my Udemy course",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "keywords": [],
   "author": "JC",
   "license": "ISC",
-  "devDependencies": {
-    "nodemon": "^2.0.7"
-  },
   "dependencies": {
     "bcrypt-nodejs": "0.0.3",
     "clarifai": "^2.9.1",
